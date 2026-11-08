@@ -1,0 +1,213 @@
+[
+  {
+    "id": "inform_provide_update",
+    "description": "User reports deployment status and environment details without asking for an action.",
+    "state": {
+      "segment": "We just finished migrating the staging Postgres cluster to v16 and latency dropped by 18%."
+    },
+    "mock_answers": {
+      "is_inform": { "type": "noul", "noul": 0.96 },
+      "is_persuade": { "type": "noul", "noul": 0.05 },
+      "has_micro_intent": { "type": "noul", "noul": 0.94 },
+      "micro_intent": {
+        "type": "choice",
+        "choice": "provide_update",
+        "probabilities": {
+          "request_info": 0.01,
+          "clarify_point": 0.03,
+          "provide_update": 0.93,
+          "confirm_understanding": 0.01,
+          "validate_info": 0.02
+        },
+        "confidence": 0.91
+      }
+    },
+    "expected": {
+      "macro_intent": "INFORM",
+      "micro_intent": "provide_update",
+      "route": "ingest_provide_update",
+      "requires_star_verification": false
+    }
+  },
+  {
+    "id": "inform_clarify_point",
+    "description": "User clarifies a constraint from an earlier message without issuing a new command.",
+    "state": {
+      "segment": "Just to be clear, when I said 'timeout' earlier I meant the client read timeout, not the load balancer idle timeout.",
+      "conversation_context": "User previously mentioned experiencing timeouts in the API gateway."
+    },
+    "mock_answers": {
+      "is_inform": { "type": "noul", "noul": 0.91 },
+      "is_persuade": { "type": "noul", "noul": 0.12 },
+      "has_micro_intent": { "type": "noul", "noul": 0.95 },
+      "micro_intent": {
+        "type": "choice",
+        "choice": "clarify_point",
+        "probabilities": {
+          "request_info": 0.02,
+          "clarify_point": 0.90,
+          "provide_update": 0.05,
+          "confirm_understanding": 0.02,
+          "validate_info": 0.01
+        },
+        "confidence": 0.87
+      }
+    },
+    "expected": {
+      "macro_intent": "INFORM",
+      "micro_intent": "clarify_point",
+      "route": "ingest_clarify_point",
+      "requires_star_verification": false
+    }
+  },
+  {
+    "id": "persuade_request_info",
+    "description": "User directly asks for information / explanation.",
+    "state": {
+      "segment": "What are the rate limits on the TypeSafe System One endpoint for batch requests?"
+    },
+    "mock_answers": {
+      "is_inform": { "type": "noul", "noul": 0.08 },
+      "is_persuade": { "type": "noul", "noul": 0.92 },
+      "has_micro_intent": { "type": "noul", "noul": 0.97 },
+      "micro_intent": {
+        "type": "choice",
+        "choice": "request_info",
+        "probabilities": {
+          "request_info": 0.94,
+          "clarify_point": 0.01,
+          "provide_update": 0.01,
+          "confirm_understanding": 0.02,
+          "validate_info": 0.02
+        },
+        "confidence": 0.92
+      }
+    },
+    "expected": {
+      "macro_intent": "PERSUADE",
+      "micro_intent": "request_info",
+      "route": "execute_request_info",
+      "requires_star_verification": true
+    }
+  },
+  {
+    "id": "both_context_and_task",
+    "description": "Hybrid prompt providing production error context (INFORM) and asking to debug and patch it (PERSUADE).",
+    "state": {
+      "segment": "Our payment webhook worker is throwing a KeyError on `customer.subscription_id` whenever a guest checkout completes. Can you trace where the payload is parsed and add a guard for guest sessions?"
+    },
+    "mock_answers": {
+      "is_inform": { "type": "noul", "noul": 0.93 },
+      "is_persuade": { "type": "noul", "noul": 0.95 },
+      "has_micro_intent": { "type": "noul", "noul": 0.88 },
+      "micro_intent": {
+        "type": "choice",
+        "choice": "request_info",
+        "probabilities": {
+          "request_info": 0.58,
+          "clarify_point": 0.07,
+          "provide_update": 0.25,
+          "confirm_understanding": 0.05,
+          "validate_info": 0.05
+        },
+        "confidence": 0.45
+      }
+    },
+    "expected": {
+      "macro_intent": "BOTH",
+      "micro_intent": "request_info",
+      "route": "execute_request_info",
+      "requires_star_verification": true
+    }
+  },
+  {
+    "id": "persuade_confirm_understanding",
+    "description": "User paraphrases the architecture plan and asks if their understanding is right.",
+    "state": {
+      "segment": "So if I understand correctly, Jev only returns calibrated probabilities for each question, and our Python router computes the final decision via a truth table—right?"
+    },
+    "mock_answers": {
+      "is_inform": { "type": "noul", "noul": 0.35 },
+      "is_persuade": { "type": "noul", "noul": 0.84 },
+      "has_micro_intent": { "type": "noul", "noul": 0.96 },
+      "micro_intent": {
+        "type": "choice",
+        "choice": "confirm_understanding",
+        "probabilities": {
+          "request_info": 0.05,
+          "clarify_point": 0.03,
+          "provide_update": 0.01,
+          "confirm_understanding": 0.82,
+          "validate_info": 0.09
+        },
+        "confidence": 0.78
+      }
+    },
+    "expected": {
+      "macro_intent": "PERSUADE",
+      "micro_intent": "confirm_understanding",
+      "route": "handle_confirm_understanding",
+      "requires_star_verification": false
+    }
+  },
+  {
+    "id": "both_validate_info",
+    "description": "User shares a specific config snippet and asks to verify whether it is valid.",
+    "state": {
+      "segment": "I set `requires-python = \">=3.11\"` and `[tool.hatch.build.targets.wheel]` in pyproject.toml. Is this valid for packaging `src/` with Hatchling?"
+    },
+    "mock_answers": {
+      "is_inform": { "type": "noul", "noul": 0.78 },
+      "is_persuade": { "type": "noul", "noul": 0.89 },
+      "has_micro_intent": { "type": "noul", "noul": 0.95 },
+      "micro_intent": {
+        "type": "choice",
+        "choice": "validate_info",
+        "probabilities": {
+          "request_info": 0.10,
+          "clarify_point": 0.02,
+          "provide_update": 0.04,
+          "confirm_understanding": 0.06,
+          "validate_info": 0.78
+        },
+        "confidence": 0.72
+      }
+    },
+    "expected": {
+      "macro_intent": "BOTH",
+      "micro_intent": "validate_info",
+      "route": "handle_validate_info",
+      "requires_star_verification": false
+    }
+  },
+  {
+    "id": "ambiguous_noise_greeting",
+    "description": "Conversational filler / greeting where companion Noul gates out micro_intent.",
+    "state": {
+      "segment": "Hey there, good morning!"
+    },
+    "mock_answers": {
+      "is_inform": { "type": "noul", "noul": 0.04 },
+      "is_persuade": { "type": "noul", "noul": 0.06 },
+      "has_micro_intent": { "type": "noul", "noul": 0.05 },
+      "micro_intent": {
+        "type": "choice",
+        "choice": "provide_update",
+        "probabilities": {
+          "request_info": 0.20,
+          "clarify_point": 0.15,
+          "provide_update": 0.30,
+          "confirm_understanding": 0.18,
+          "validate_info": 0.17
+        },
+        "confidence": 0.05
+      }
+    },
+    "expected": {
+      "macro_intent": "AMBIGUOUS",
+      "micro_intent": null,
+      "route": "clarify_or_acknowledge",
+      "requires_star_verification": false
+    }
+  }
+]

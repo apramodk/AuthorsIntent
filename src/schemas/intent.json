@@ -1,0 +1,57 @@
+{
+  "schema_version": "0.0.1",
+  "description": "TypeSafe Jev question definitions for evaluating Macro and Operational Micro Intents on a dialogue segment.",
+  "state_contract": {
+    "segment": "The specific user utterance or segmented clause being evaluated.",
+    "conversation_context": "Optional prior turn summary or immediate dialogue history relevant to the segment."
+  },
+  "questions": {
+    "is_inform": {
+      "type": "noul",
+      "instructions": "Does `segment` provide background facts, current status updates, or situational constraints?",
+      "criteria": {
+        "true": "The user states facts, shares background context, reports a status update, or defines constraints.",
+        "false": "The user only issues a command or asks a question without stating facts, updates, or constraints."
+      }
+    },
+    "is_persuade": {
+      "type": "noul",
+      "instructions": "Does `segment` direct the assistant to perform a task, execute a command, or produce a specific outcome?",
+      "criteria": {
+        "true": "The user asks the assistant to take an action, generate an output, solve a problem, or answer a question.",
+        "false": "The user only shares information, background context, or status updates without asking the assistant to act or respond with a solution."
+      }
+    },
+    "has_micro_intent": {
+      "type": "noul",
+      "instructions": "Does `segment` express a clear operational conversational act (requesting info, clarifying a point, providing an update, confirming understanding, or validating info)?",
+      "criteria": {
+        "true": "The segment performs a concrete conversational move such as asking for information, clarifying a detail, sharing an update, checking mutual understanding, or verifying whether a claim is accurate.",
+        "false": "The segment is pure filler, a greeting, off-topic noise, or an incomplete fragment with no clear conversational act."
+      }
+    },
+    "micro_intent": {
+      "type": "choice",
+      "instructions": "Which operational conversational move is the user making in `segment`?",
+      "criteria": {
+        "request_info": "The user asks a question to obtain new facts, documentation, explanations, or missing details they do not yet have.",
+        "clarify_point": "The user refines, corrects, or narrows down an ambiguity from an earlier message or assumption in `conversation_context`.",
+        "provide_update": "The user reports new state, progress, logs, environment changes, or background facts for the assistant to record.",
+        "confirm_understanding": "The user paraphrases how they or the assistant understand the plan or system state and asks whether that interpretation matches.",
+        "validate_info": "The user presents a specific claim, configuration, or piece of data and asks the assistant to check whether it is factually correct or valid."
+      }
+    }
+  },
+  "macro_derivation": {
+    "thresholds": {
+      "yes": 0.7,
+      "no": 0.3
+    },
+    "truth_table": {
+      "BOTH": "is_inform >= 0.7 and is_persuade >= 0.7",
+      "INFORM": "is_inform >= 0.7 and is_persuade < 0.7",
+      "PERSUADE": "is_persuade >= 0.7 and is_inform < 0.7",
+      "AMBIGUOUS": "otherwise"
+    }
+  }
+}

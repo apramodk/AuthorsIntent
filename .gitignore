@@ -1,0 +1,30 @@
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Packaging / build artifacts
+*.egg-info/
+.eggs/
+dist/
+build/
+wheels/
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+*.swp
