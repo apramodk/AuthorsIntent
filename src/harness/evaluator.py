@@ -21,6 +21,8 @@ class IntentEvaluation:
     has_micro_intent_prob: float
     micro_intent_probabilities: dict[str, float]
     raw_answers: dict[str, Any]
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
 
 class IntentEvaluator:
@@ -47,6 +49,9 @@ class IntentEvaluator:
 
         response = self.engine.evaluate(state=state, questions=self.questions)
         answers = response.get("answers", response)
+        usage = response.get("usage") or {}
+        input_tokens = usage.get("input_tokens")
+        output_tokens = usage.get("output_tokens")
 
         is_inform_prob = float(answers["is_inform"]["noul"])
         is_persuade_prob = float(answers["is_persuade"]["noul"])
@@ -69,6 +74,8 @@ class IntentEvaluator:
             has_micro_intent_prob=has_micro_prob,
             micro_intent_probabilities=micro_probs,
             raw_answers=answers,
+            input_tokens=int(input_tokens) if input_tokens is not None else None,
+            output_tokens=int(output_tokens) if output_tokens is not None else None,
         )
 
     def derive_macro_intent(self, is_inform_prob: float, is_persuade_prob: float) -> str:

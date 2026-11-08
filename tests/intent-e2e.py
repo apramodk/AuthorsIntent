@@ -64,6 +64,9 @@ def format_sample_report(
         and decision.requires_star_verification == expected["requires_star_verification"]
     )
     badge = f"{GREEN}{BOLD}[PASS]{RESET}" if passed else f"{RED}{BOLD}[FAIL]{RESET}"
+    in_tok = evaluation.input_tokens or 0
+    out_tok = evaluation.output_tokens or 0
+    total_tok = in_tok + out_tok
     return (
         f"\n{badge} {CYAN}{BOLD}{sample_id}{RESET}\n"
         f"  {DIM}segment:{RESET} {segment}\n"
@@ -73,7 +76,10 @@ def format_sample_report(
         f"  {DIM}macro:{RESET}   {_color_match(evaluation.macro_intent, expected['macro_intent'])}\n"
         f"  {DIM}micro:{RESET}   {_color_match(evaluation.micro_intent, expected['micro_intent'])}\n"
         f"  {DIM}route:{RESET}   {_color_match(decision.route, expected['route'])} "
-        f"{MAGENTA}[STAR={decision.requires_star_verification}]{RESET}"
+        f"{MAGENTA}[STAR={decision.requires_star_verification}]{RESET}\n"
+        f"  {DIM}tokens:{RESET}  input={CYAN}{in_tok}{RESET}, "
+        f"output={CYAN}{out_tok}{RESET}, "
+        f"total={BOLD}{CYAN}{total_tok}{RESET}"
     )
 
 
@@ -93,6 +99,9 @@ class IntentE2ETest(unittest.TestCase):
         print(
             f"\n{BOLD}{CYAN}=== AuthorsIntent Live E2E Routing Tests (Model: {self.engine.model}) ==={RESET}"
         )
+        total_input_tokens = 0
+        total_output_tokens = 0
+
         for sample in self.samples:
             sample_id = sample["id"]
             state = sample["state"]
@@ -104,6 +113,9 @@ class IntentE2ETest(unittest.TestCase):
                     conversation_context=state.get("conversation_context"),
                 )
                 decision = self.router.route_intent(evaluation)
+                total_input_tokens += evaluation.input_tokens or 0
+                total_output_tokens += evaluation.output_tokens or 0
+
                 print(
                     format_sample_report(
                         sample_id, state["segment"], evaluation, decision, expected
@@ -130,6 +142,15 @@ class IntentE2ETest(unittest.TestCase):
                     expected["requires_star_verification"],
                     f"[{sample_id}] requires_star_verification mismatch",
                 )
+
+        grand_total = total_input_tokens + total_output_tokens
+        print(
+            f"\n{BOLD}{CYAN}--- E2E Token Usage Summary ---{RESET}\n"
+            f"  {DIM}Scenarios:{RESET} {len(self.samples)}\n"
+            f"  {DIM}Input:{RESET}     {CYAN}{total_input_tokens}{RESET} tokens\n"
+            f"  {DIM}Output:{RESET}    {CYAN}{total_output_tokens}{RESET} tokens\n"
+            f"  {DIM}Total:{RESET}     {BOLD}{CYAN}{grand_total}{RESET} tokens"
+        )
 
 
 if __name__ == "__main__":
