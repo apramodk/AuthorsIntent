@@ -8,18 +8,18 @@
   "questions": {
     "is_inform": {
       "type": "noul",
-      "instructions": "Does `segment` provide background facts, current status updates, or situational constraints?",
+      "instructions": "Does `segment` supply background facts, current status updates, or situational constraints from the user?",
       "criteria": {
-        "true": "The user states facts, shares background context, reports a status update, or defines constraints.",
-        "false": "The user only issues a command or asks a question without stating facts, updates, or constraints."
+        "true": "The user provides facts, background context, environment state, progress updates, or constraints for the assistant to know.",
+        "false": "The user only issues a command, asks a question, or paraphrases an idea solely to ask whether their understanding is correct."
       }
     },
     "is_persuade": {
       "type": "noul",
-      "instructions": "Does `segment` direct the assistant to perform a task, execute a command, or produce a specific outcome?",
+      "instructions": "Does `segment` ask the assistant to perform a task, execute a command, answer a question, or confirm a point?",
       "criteria": {
-        "true": "The user asks the assistant to take an action, generate an output, solve a problem, or answer a question.",
-        "false": "The user only shares information, background context, or status updates without asking the assistant to act or respond with a solution."
+        "true": "The user directs the assistant to take an action, generate an output, solve a problem, answer a question, or confirm/validate a statement.",
+        "false": "The user only shares information, background context, or status updates without asking the assistant to act, answer, or confirm anything."
       }
     },
     "has_micro_intent": {

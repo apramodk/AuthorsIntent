@@ -46,8 +46,9 @@ Dialogue segments are evaluated for completeness against **STAR** (**S**ituation
 │       └── router.py           # Truth-table routing logic over calibrated probabilities
 └── tests/
     ├── data/
-    │   └── intent_samples.json # Mock test utterances, Jev probabilities, and expected routes
-    └── intent.py               # Offline unit tests & live Jev probe runner
+    │   └── intent_samples.json # Test utterances, mock Jev probabilities, and expected routes
+    ├── intent-core.py          # Offline core unit tests (mock probabilities -> truth-table router)
+    └── intent-e2e.py           # Live E2E tests against the TypeSafe Jev API
 ```
 
 ---
@@ -57,7 +58,7 @@ Dialogue segments are evaluated for completeness against **STAR** (**S**ituation
 ### 1. Prerequisites
 - Python `>=3.11`
 - [`uv`](https://docs.astral.sh/uv/) package manager
-- A TypeSafe API key (only required for live API testing against **Jev**)
+- A TypeSafe API key (only required for live E2E testing against **Jev**)
 
 ### 2. Environment Setup
 
@@ -80,9 +81,13 @@ source .venv/bin/activate
 
 ### 3. Configuring API Keys (`.env`)
 
-For live testing against TypeSafe's Jev API, create a `.env` file in the project root (ignored by git):
+Copy `.example.env` to `.env` in the project root (ignored by git) and set your TypeSafe Jev API key:
 
 ```bash
+cp .example.env .env
+```
+
+```dotenv
 JEV_KEY=your_typesafe_api_key_here
 ```
 
@@ -92,22 +97,22 @@ JEV_KEY=your_typesafe_api_key_here
 
 ## Running Tests
 
-### 1. Offline Unit Tests (Mock Engine)
-Runs fast, deterministic tests against the pre-recorded Jev probability distributions in `tests/data/intent_samples.json` to verify schema loading, Noul threshold derivation, and truth-table routing:
+### 1. Core Unit Tests (`tests/intent-core.py`)
+Runs fast, offline deterministic tests against the pre-recorded Jev probability distributions in `tests/data/intent_samples.json` to verify schema loading, Noul threshold derivation, and truth-table routing:
 
 ```bash
-uv run python tests/intent.py
+uv run python tests/intent-core.py
 # or directly with the venv interpreter:
-.venv/bin/python tests/intent.py
+.venv/bin/python tests/intent-core.py
 ```
 
-### 2. Live API Probe (TypeSafe Jev)
-Sends the sample utterances in `tests/data/intent_samples.json` to the live TypeSafe System One API (`https://api.typesafe.ai/v1/systemone`) using `JEV_KEY` from `.env`, printing out calibrated Noul probabilities and comparing actual vs. expected routes:
+### 2. Live E2E Tests (`tests/intent-e2e.py`)
+Sends the sample utterances in `tests/data/intent_samples.json` to the live TypeSafe System One API (`https://api.typesafe.ai/v1/systemone`) using `JEV_KEY` from `.env`, printing out calibrated Noul probabilities and asserting actual vs. expected routes:
 
 ```bash
-uv run python tests/intent.py --live
+uv run python tests/intent-e2e.py
 # or directly with the venv interpreter:
-.venv/bin/python tests/intent.py --live
+.venv/bin/python tests/intent-e2e.py
 ```
 
 ### 3. Adding New Test Cases or Dependencies

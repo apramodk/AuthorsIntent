@@ -22,6 +22,7 @@ wheels/
 .env
 .env.*
 !.env.example
+!.example.env
 
 # IDE & OS files
 .vscode/
