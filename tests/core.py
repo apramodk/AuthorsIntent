@@ -1,4 +1,4 @@
-"""Offline core unit tests using a deterministic MockDecisionEngine."""
+"""Offline core unit tests using a deterministic MockDecisionClient."""
 
 import json
 from pathlib import Path
@@ -6,16 +6,16 @@ import sys
 from typing import Any
 import unittest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.engines.base import DecisionEngine
-from tests.decider.runner import build_decider_suite, discover_sample_sets, run_cli
+from src.clients import DecisionClient
+from tests.runner import build_decider_suite, discover_sample_sets, run_cli
 
 
-class MockDecisionEngine(DecisionEngine):
-    """Deterministic engine returning mock answers keyed by serialized state across all sample sets."""
+class MockDecisionClient(DecisionClient):
+    """Deterministic client returning mock answers keyed by serialized state across all sample sets."""
 
     def __init__(self, all_samples: dict[str, list[dict[str, Any]]]) -> None:
         self._by_state_key: dict[str, dict[str, Any]] = {}
@@ -36,7 +36,7 @@ def build_core_suite(
     all_samples = discover_sample_sets()
     return build_decider_suite(
         file_label="CORE",
-        engine_factory=lambda: MockDecisionEngine(all_samples),
+        client_factory=lambda: MockDecisionClient(all_samples),
         samples_by_set=samples_by_set,
         scoreboard=scoreboard,
         token_totals=None,

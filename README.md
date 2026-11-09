@@ -1,31 +1,34 @@
 # AuthorsIntent
 
-A modular conversation routing harness powered by a System One decision engine (starting with TypeSafe's **Jev**, designed to swap cleanly to **OpenJev**).
+A modular conversation routing service powered by a System One decision client (starting with TypeSafe's **Jev**, designed to swap cleanly to **OpenJev**).
 
-Instead of relying on brittle heuristics or open-ended LLM prompt-and-parse steps to route user turns, **AuthorsIntent** decomposes dialogue turns into typed judgments—classifying authorial intent and verifying prompt completeness against the **STAR** framework—while keeping routing decisions explicit and testable in code.
+Instead of relying on brittle heuristics or open-ended LLM prompt-and-parse steps to route user turns, **AuthorsIntent** decomposes dialogue into typed judgments—segmenting multi-turn threads by topic, classifying authorial intent, and verifying prompt completeness against the **STAR** framework.
 
 ---
 
 ## Architecture Overview
 
-### 1. Intent Taxonomy
+### 1. Topic Segmentation (`src/schemas/segment.json`)
+Evaluates incoming turns against a sliding window (`window_size=2`) of the active topic segment:
+- `CONTINUE_SEGMENT`: Continues or answers the active topic.
+- `NEW_SEGMENT`: Pivots to an unrelated topic or task.
+- `COMPOUND_SHIFT`: Wraps up the previous topic and introduces a new one in the same message.
+- `AMBIGUOUS_BOUNDARY`: Brief acknowledgments or filler turns.
+
+### 2. Intent Taxonomy (`src/schemas/intent.json`)
 - **Macro Intent (Author's Purpose):**
   - `INFORM`: User provides context, state updates, or background constraints.
   - `PERSUADE`: User issues commands, tasks, or desired outcomes.
   - `BOTH`: Hybrid prompts combining context and actionable requests.
 - **Operational Micro Intents:**
-  - `request_info`
-  - `clarify_point`
-  - `provide_update`
-  - `confirm_understanding`
-  - `validate_info`
+  - `request_info`, `clarify_point`, `provide_update`, `confirm_understanding`, `validate_info`.
 
-### 2. Verification Framework (STAR)
+### 3. Verification Framework — STAR (`src/schemas/star.json`)
 Dialogue segments are evaluated for completeness against **STAR** (**S**ituation, **T**ask, **A**ction, **R**esult):
 - **Minimum Execution Threshold (`is_sufficient`):** Both `Situation` and `Task` must be present.
 - **Incomplete Handling:**
-  - *Missing parameters:* Trigger targeted clarification questions.
-  - *Vague / unstructured:* Switch to a scaffolding persona to guide the user in structuring their request.
+  - `CLARIFY_PARAMETERS`: Trigger targeted clarification for missing `Situation` or `Task`.
+  - `SCAFFOLD_USER`: Switch to a scaffolding persona when the prompt is vague or unstructured.
 
 ---
 
@@ -33,103 +36,56 @@ Dialogue segments are evaluated for completeness against **STAR** (**S**ituation
 
 ```text
 ├── src/
+│   ├── __init__.py             # Re-exports ConversationRouter & RouteDecision
+│   ├── router.py               # ConversationRouter main entry point
 │   ├── schemas/
-│   │   ├── intent.json         # Typed Jev questions & truth-table rules for macro/micro intent
-│   │   ├── star.json           # Typed Jev questions & truth-table rules for STAR verification
-│   │   └── segment.json        # Typed Jev questions & truth-table rules for topic segmentation
-│   ├── engines/
-│   │   ├── base.py             # Abstract DecisionEngine interface
-│   │   └── jev_engine.py       # TypeSafe Jev DecisionEngine implementation (typesafe-sdk)
-│   └── harness/
+│   │   ├── intent.json         # Typed Jev questions & rules for macro/micro intent
+│   │   ├── star.json           # Typed Jev questions & rules for STAR verification
+│   │   └── segment.json        # Typed Jev questions & rules for topic segmentation
+│   ├── clients/
+│   │   ├── base.py             # Abstract DecisionClient interface
+│   │   └── jevClient.py        # TypeSafe Jev DecisionClient implementation
+│   └── deciders/
 │       ├── deciderFactory.py   # Generic JSON-driven Decider & DeciderFactory
-│       ├── deciderManager.py   # DeciderManager registry creating decider instances per schema
-│       └── router.py           # ConversationRouter over DeciderManager outputs
+│       └── deciderManager.py   # DeciderManager registry creating deciders per schema
 └── tests/
     ├── data/
-    │   ├── intent_samples.json  # Intent test utterances, mock Jev probabilities, and expected routes
-    │   ├── star_samples.json    # STAR test utterances, mock Jev probabilities, and expected routes
-    │   └── segment_samples.json # Topic boundary test threads, mock Jev probabilities, and outputs
-    └── decider/
-        ├── core.py             # Unified offline core unit tests for DeciderManager, Decider & Router
-        └── e2e.py              # Unified live E2E tests against TypeSafe Jev
+    │   ├── intent_samples.json
+    │   ├── star_samples.json
+    │   └── segment_samples.json
+    ├── core.py                 # Offline core unit tests
+    ├── e2e.py                  # Live E2E tests against TypeSafe Jev
+    └── runner.py               # Shared CLI test runner & scoreboard
 ```
 
 ---
 
-## Contributor Setup
+## Quick Start
 
-### 1. Prerequisites
-- Python `>=3.11`
-- [`uv`](https://docs.astral.sh/uv/) package manager
-- A TypeSafe API key (only required for live E2E testing against **Jev**)
+```python
+from src import ConversationRouter
 
-### 2. Environment Setup
+router = ConversationRouter()
 
-Clone the repository, create the virtual environment, and sync dependencies with `uv`:
+# Route a single turn (Intent + STAR verification)
+decision = router.route(
+    "Our `/v1/search` endpoint in `src/api/search.py` takes 1.4s on average. "
+    "Can you optimize the query so p95 drops under 150ms?"
+)
+print(decision.intent.output)       # "BOTH"
+print(decision.star.output)         # "MISSING_ACTION"
+print(decision.star.is_sufficient)  # True
 
-```bash
-git clone <repo-url>
-cd AuthorsIntent
-
-# Create .venv and install dependencies from pyproject.toml / uv.lock
-uv venv
-uv sync
+# Segment and route a multi-turn conversation thread
+routes = router.route_thread(
+    "User: Webhook worker is throwing KeyError on guest checkout.\n"
+    "Assistant: Check where customer.subscription_id is parsed.\n"
+    "User: Also, how do we configure dark mode in the dashboard?"
+)
 ```
-
-*(Optional)* Activate the virtual environment in your shell:
-
-```bash
-source .venv/bin/activate
-```
-
-### 3. Configuring API Keys (`.env`)
-
-Copy `.example.env` to `.env` in the project root (ignored by git) and set your TypeSafe Jev API key:
-
-```bash
-cp .example.env .env
-```
-
-```dotenv
-JEV_KEY=your_typesafe_api_key_here
-```
-
-*(Note: `JevEngine` checks `JEV_KEY` first and falls back to `TYPESAFE_API_KEY`.)*
 
 ---
 
-## Running Tests
+## Contributing & Running Tests
 
-### 1. Run Everything (`uv run test`)
-Runs both offline core tests (`core.py`) and live Jev E2E tests (`e2e.py`) across all decider sets (`intent` and `star`), printing a color-coded **Scenario Scoreboard** at the end:
-
-```bash
-uv run test
-```
-
-### 2. Filtering by `--file`, `--set`, or `--scenario`
-You can filter by test file (`core` or `e2e`), decider test set (`intent` or `star`), and/or a specific scenario ID or substring:
-
-```bash
-# Offline core tests only
-uv run test --file core
-# (or: uv run python tests/decider/core.py)
-
-# Live Jev E2E tests only
-uv run test --file e2e
-# (or: uv run python tests/decider/e2e.py)
-
-# Run only the STAR test set (or --set intent)
-uv run test --file core --set star
-
-# Run a specific scenario in a file or set
-uv run test --file core --set star --scenario star_missing_action
-uv run test --file e2e --set intent --scenario confirm_understanding
-
-# Add -v / --verbose to log detailed per-scenario breakdowns (segments, Noul probs, strategies)
-uv run test --file core -v
-```
-
-### 3. Adding New Test Cases or Dependencies
-- **Add test cases:** Append new sample objects (`id`, `state`, `mock_answers`, `expected`) to `tests/data/intent_samples.json`.
-- **Add a package:** Run `uv add <package>` (or `uv add --dev <package>`), which automatically updates both `pyproject.toml` and `uv.lock`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup (`uv`), `.env` configuration, test runner CLI flags (`uv run test`), and codebase conventions (`camelCase` filenames, declarative schema design).

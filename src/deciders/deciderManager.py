@@ -3,8 +3,8 @@
 from pathlib import Path
 from typing import Any
 
-from src.engines.base import DecisionEngine
-from src.harness.deciderFactory import Decider, DeciderFactory, DecisionResult
+from src.clients.base import DecisionClient
+from src.deciders.deciderFactory import Decider, DeciderFactory, DecisionResult
 
 DEFAULT_SCHEMAS_DIR = Path(__file__).resolve().parents[1] / "schemas"
 
@@ -14,10 +14,10 @@ class DeciderManager:
 
     def __init__(
         self,
-        engine: DecisionEngine,
+        client: DecisionClient,
         schemas_dir: Path | None = None,
     ) -> None:
-        self.engine = engine
+        self.client = client
         self.schemas_dir = schemas_dir or DEFAULT_SCHEMAS_DIR
         self.deciders: dict[str, Decider] = {}
         self._load_schemas()
@@ -30,7 +30,7 @@ class DeciderManager:
             text = path.read_text(encoding="utf-8").strip()
             if not text or text == "{}":
                 continue
-            decider = DeciderFactory.from_file(path=path, engine=self.engine)
+            decider = DeciderFactory.from_file(path=path, client=self.client)
             self.deciders[decider.name] = decider
 
     def register_decider(self, decider: Decider) -> None:
@@ -38,7 +38,7 @@ class DeciderManager:
         self.deciders[decider.name] = decider
 
     def get_decider(self, name: str) -> Decider:
-        """Retrieve a registered Decider by name (e.g., 'intent' or 'star')."""
+        """Retrieve a registered Decider by name (e.g., 'intent', 'star', 'segment')."""
         if name not in self.deciders:
             available = ", ".join(sorted(self.deciders.keys()))
             raise KeyError(f"Unknown decider {name!r}. Available deciders: [{available}]")

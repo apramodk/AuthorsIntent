@@ -9,15 +9,15 @@ import sys
 from typing import Any
 import unittest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.engines.base import DecisionEngine
-from src.harness import ConversationRouter
-from src.harness.deciderFactory import DecisionResult
+from src import ConversationRouter
+from src.clients import DecisionClient
+from src.deciders import DecisionResult
 
-DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+DATA_DIR = Path(__file__).resolve().parent / "data"
 logger = logging.getLogger("authors_intent.tests")
 
 # ANSI color codes
@@ -139,12 +139,12 @@ def discover_sample_sets(
 
 def build_decider_suite(
     file_label: str,
-    engine_factory: Callable[[], DecisionEngine],
+    client_factory: Callable[[], DecisionClient],
     samples_by_set: dict[str, list[dict[str, Any]]],
     scoreboard: list[dict[str, Any]],
     token_totals: dict[str, int] | None = None,
 ) -> unittest.TestSuite:
-    """Build a unittest.TestSuite for any DecisionEngine across all discovered sample sets."""
+    """Build a unittest.TestSuite for any DecisionClient across all discovered sample sets."""
     show_tokens = token_totals is not None
 
     class DeciderTestCase(unittest.TestCase):
@@ -152,7 +152,7 @@ def build_decider_suite(
 
         @classmethod
         def setUpClass(cls) -> None:
-            cls.router = ConversationRouter(engine=engine_factory())
+            cls.router = ConversationRouter(client=client_factory())
             logger.debug(
                 f"\n{BOLD}{CYAN}=== AuthorsIntent [{file_label}] Decider Tests ==={RESET}"
             )
@@ -275,8 +275,8 @@ def log_scoreboard(
 
 
 def run_cli(default_file: str = "all", argv: list[str] | None = None) -> int:
-    from tests.decider.core import build_core_suite
-    from tests.decider.e2e import build_e2e_suite
+    from tests.core import build_core_suite
+    from tests.e2e import build_e2e_suite
 
     available_sets = ["all"] + [
         p.stem.removesuffix("_samples") for p in sorted(DATA_DIR.glob("*_samples.json"))

@@ -1,4 +1,4 @@
-"""TypeSafe Jev decision engine implementation backed by `typesafe-sdk`."""
+"""TypeSafe Jev client implementation backed by `typesafe-sdk`."""
 
 import os
 from pathlib import Path
@@ -7,11 +7,11 @@ from typing import Any
 from dotenv import load_dotenv
 from typesafe_sdk import SystemOneResponse, TypeSafeClient
 
-from .base import DecisionEngine
+from .base import DecisionClient
 
 
-class JevEngine(DecisionEngine):
-    """DecisionEngine backed by TypeSafe's official `typesafe-sdk` client."""
+class JevClient(DecisionClient):
+    """DecisionClient backed by TypeSafe's official `typesafe-sdk` client."""
 
     DEFAULT_MODEL = "jev-latest"
 

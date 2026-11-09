@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-test = "tests.decider.runner:main"
+test = "tests.runner:main"
 
 [build-system]
 requires = ["hatchling"]

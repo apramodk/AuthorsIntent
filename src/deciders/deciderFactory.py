@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.engines.base import DecisionEngine
+from src.clients.base import DecisionClient
 
 
 @dataclass(frozen=True)
@@ -28,9 +28,9 @@ class DecisionResult:
 class Decider:
     """Generic decider driven by a declarative JSON schema (questions, thresholds, gating, rules)."""
 
-    def __init__(self, schema: dict[str, Any], engine: DecisionEngine) -> None:
+    def __init__(self, schema: dict[str, Any], client: DecisionClient) -> None:
         self.schema = schema
-        self.engine = engine
+        self.client = client
         self.name: str = str(schema.get("name", "unnamed"))
         self.questions: dict[str, Any] = schema["questions"]
 
@@ -45,7 +45,7 @@ class Decider:
 
     def decide(self, state: dict[str, Any]) -> DecisionResult:
         """Evaluate the schema's questions against `state` and apply its truth-table rules."""
-        response = self.engine.evaluate(state=state, questions=self.questions)
+        response = self.client.evaluate(state=state, questions=self.questions)
         answers = response.get("answers", response)
         usage = response.get("usage") or {}
         return self.apply_rules(answers=answers, usage=usage)
@@ -122,14 +122,14 @@ class DeciderFactory:
     """Factory for creating Decider instances from JSON schema dictionaries or files."""
 
     @staticmethod
-    def from_dict(schema: dict[str, Any], engine: DecisionEngine) -> Decider:
+    def from_dict(schema: dict[str, Any], client: DecisionClient) -> Decider:
         """Instantiate a Decider from a parsed JSON schema dictionary."""
-        return Decider(schema=schema, engine=engine)
+        return Decider(schema=schema, client=client)
 
     @staticmethod
-    def from_file(path: Path, engine: DecisionEngine) -> Decider:
+    def from_file(path: Path, client: DecisionClient) -> Decider:
         """Load a JSON schema file and instantiate a Decider."""
         schema = json.loads(path.read_text(encoding="utf-8"))
         if "name" not in schema:
             schema["name"] = path.stem
-        return Decider(schema=schema, engine=engine)
+        return Decider(schema=schema, client=client)

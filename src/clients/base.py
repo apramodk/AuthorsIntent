@@ -1,11 +1,11 @@
-"""Abstract base interface for decision engines."""
+"""Abstract base interface for System One decision model clients."""
 
 from abc import ABC, abstractmethod
 from typing import Any
 
 
-class DecisionEngine(ABC):
-    """Abstract base class for System One decision engines (e.g., Jev, OpenJev)."""
+class DecisionClient(ABC):
+    """Abstract base class for System One decision clients (e.g., Jev, OpenJev)."""
 
     @abstractmethod
     def evaluate(self, state: dict[str, Any], questions: dict[str, Any]) -> dict[str, Any]:

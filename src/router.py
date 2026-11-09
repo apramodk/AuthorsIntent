@@ -5,10 +5,10 @@ from pathlib import Path
 import re
 from typing import Any
 
-from src.engines.base import DecisionEngine
-from src.engines.jev_engine import JevEngine
-from src.harness.deciderFactory import DecisionResult
-from src.harness.deciderManager import DeciderManager
+from src.clients.base import DecisionClient
+from src.clients.jevClient import JevClient
+from src.deciders.deciderFactory import DecisionResult
+from src.deciders.deciderManager import DeciderManager
 
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 LIGHTWEIGHT_MICRO_INTENTS = frozenset({"confirm_understanding", "validate_info"})
@@ -28,28 +28,28 @@ class RouteDecision:
 
 
 class ConversationRouter:
-    """Main harness entry point managing deciders for topic segmentation, intent, and STAR verification."""
+    """Main entry point managing deciders for topic segmentation, intent, and STAR verification."""
 
     def __init__(
         self,
-        engine: DecisionEngine | None = None,
+        client: DecisionClient | None = None,
         manager: DeciderManager | None = None,
         schemas_dir: Path | None = None,
     ) -> None:
         if manager is not None:
             self.manager = manager
-            self.engine = manager.engine
+            self.client = manager.client
         else:
-            self.engine = engine or JevEngine()
-            self.manager = DeciderManager(engine=self.engine, schemas_dir=schemas_dir)
+            self.client = client or JevClient()
+            self.manager = DeciderManager(client=self.client, schemas_dir=schemas_dir)
 
     def decide(self, name: str, state: dict[str, Any]) -> DecisionResult:
         """Evaluate `state` against the named decider ('intent', 'star', 'segment', etc.)."""
         return self.manager.decide(name=name, state=state)
 
     def close(self) -> None:
-        """Close the underlying engine if it holds open resources."""
-        close_fn = getattr(self.engine, "close", None)
+        """Close the underlying client if it holds open resources."""
+        close_fn = getattr(self.client, "close", None)
         if callable(close_fn):
             close_fn()
 

@@ -5,12 +5,12 @@ import sys
 from typing import Any
 import unittest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.engines.jev_engine import JevEngine
-from tests.decider.runner import build_decider_suite, run_cli
+from src.clients import JevClient
+from tests.runner import build_decider_suite, run_cli
 
 
 def build_e2e_suite(
@@ -20,7 +20,7 @@ def build_e2e_suite(
 ) -> unittest.TestSuite:
     return build_decider_suite(
         file_label="E2E",
-        engine_factory=JevEngine,
+        client_factory=JevClient,
         samples_by_set=samples_by_set,
         scoreboard=scoreboard,
         token_totals=token_totals,
