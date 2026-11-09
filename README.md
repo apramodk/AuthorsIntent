@@ -34,21 +34,23 @@ Dialogue segments are evaluated for completeness against **STAR** (**S**ituation
 ```text
 ├── src/
 │   ├── schemas/
-│   │   ├── intent.json         # Typed questions & criteria for macro/micro intent
-│   │   ├── star.json           # Typed questions & criteria for STAR verification
-│   │   └── routing.json        # Routing thresholds & decision rules
+│   │   ├── intent.json         # Typed Jev questions & truth-table rules for macro/micro intent
+│   │   └── star.json           # Typed Jev questions & truth-table rules for STAR verification
 │   ├── engines/
 │   │   ├── base.py             # Abstract DecisionEngine interface
-│   │   └── jev_engine.py       # TypeSafe Jev DecisionEngine implementation
+│   │   └── jev_engine.py       # TypeSafe Jev DecisionEngine implementation (typesafe-sdk)
 │   └── harness/
 │       ├── segmenter.py        # Dialogue turn & clause segmentation
-│       ├── evaluator.py        # Runs schemas against state via the DecisionEngine
-│       └── router.py           # Truth-table routing logic over calibrated probabilities
+│       ├── deciderFactory.py   # Generic JSON-driven Decider & DeciderFactory
+│       ├── deciderManager.py   # DeciderManager registry creating decider instances per schema
+│       └── router.py           # Strategy-pattern ConversationRouter over decider outputs
 └── tests/
     ├── data/
-    │   └── intent_samples.json # Test utterances, mock Jev probabilities, and expected routes
-    ├── intent-core.py          # Offline core unit tests (mock probabilities -> truth-table router)
-    └── intent-e2e.py           # Live E2E tests against the TypeSafe Jev API
+    │   ├── intent_samples.json # Intent test utterances, mock Jev probabilities, and expected routes
+    │   └── star_samples.json   # STAR test utterances, mock Jev probabilities, and expected routes
+    └── decider/
+        ├── core.py             # Unified offline core unit tests for DeciderManager, Decider & Router
+        └── e2e.py              # Unified live E2E tests against TypeSafe Jev
 ```
 
 ---
@@ -97,22 +99,34 @@ JEV_KEY=your_typesafe_api_key_here
 
 ## Running Tests
 
-### 1. Core Unit Tests (`tests/intent-core.py`)
-Runs fast, offline deterministic tests against the pre-recorded Jev probability distributions in `tests/data/intent_samples.json` to verify schema loading, Noul threshold derivation, and truth-table routing:
+### 1. Run Everything (`uv run test`)
+Runs both offline core tests (`core.py`) and live Jev E2E tests (`e2e.py`) across all decider sets (`intent` and `star`), printing a color-coded **Scenario Scoreboard** at the end:
 
 ```bash
-uv run python tests/intent-core.py
-# or directly with the venv interpreter:
-.venv/bin/python tests/intent-core.py
+uv run test
 ```
 
-### 2. Live E2E Tests (`tests/intent-e2e.py`)
-Sends the sample utterances in `tests/data/intent_samples.json` to the live TypeSafe System One API (`https://api.typesafe.ai/v1/systemone`) using `JEV_KEY` from `.env`, printing out calibrated Noul probabilities and asserting actual vs. expected routes:
+### 2. Filtering by `--file`, `--set`, or `--scenario`
+You can filter by test file (`core` or `e2e`), decider test set (`intent` or `star`), and/or a specific scenario ID or substring:
 
 ```bash
-uv run python tests/intent-e2e.py
-# or directly with the venv interpreter:
-.venv/bin/python tests/intent-e2e.py
+# Offline core tests only
+uv run test --file core
+# (or: uv run python tests/decider/core.py)
+
+# Live Jev E2E tests only
+uv run test --file e2e
+# (or: uv run python tests/decider/e2e.py)
+
+# Run only the STAR test set (or --set intent)
+uv run test --file core --set star
+
+# Run a specific scenario in a file or set
+uv run test --file core --set star --scenario star_missing_action
+uv run test --file e2e --set intent --scenario confirm_understanding
+
+# Add -v / --verbose to log detailed per-scenario breakdowns (segments, Noul probs, strategies)
+uv run test --file core -v
 ```
 
 ### 3. Adding New Test Cases or Dependencies

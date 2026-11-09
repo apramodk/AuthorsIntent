@@ -1,1 +1,104 @@
-{}
+{
+  "name": "star",
+  "schema_version": "0.0.1",
+  "description": "TypeSafe Jev question definitions and truth-table rules for evaluating dialogue segments against the STAR (Situation, Task, Action, Result) verification framework.",
+  "state_contract": {
+    "segment": "The specific user utterance or segmented clause being evaluated.",
+    "conversation_context": "Optional prior turn summary or dialogue history that may already establish background context."
+  },
+  "thresholds": {
+    "yes": 0.7,
+    "no": 0.3
+  },
+  "questions": {
+    "has_situation": {
+      "type": "noul",
+      "instructions": "Does `segment` (together with `conversation_context` if provided) establish the Situation—the concrete background context, system state, environment, or problem setting?",
+      "criteria": {
+        "true": "The user identifies the specific system, file, component, environment, error state, or operational context in which the request takes place.",
+        "false": "The user gives no background context, system scope, or current state, leaving where or why the request applies unspecified."
+      }
+    },
+    "has_task": {
+      "type": "noul",
+      "instructions": "Does `segment` specify the Task—a clear objective, deliverable, or problem that needs to be solved?",
+      "criteria": {
+        "true": "The user states a concrete goal, question to answer, bug to fix, or requirement to fulfill.",
+        "false": "The user only describes background facts or expresses general frustration without naming a concrete objective or deliverable."
+      }
+    },
+    "has_action": {
+      "type": "noul",
+      "instructions": "Does `segment` specify the Action—the particular method, steps, tool, algorithm, or implementation approach to use?",
+      "criteria": {
+        "true": "The user names specific steps, libraries, commands, architectural patterns, or constraints on how the task should be carried out.",
+        "false": "The user states what they want solved or built without prescribing the specific method, steps, or implementation approach."
+      }
+    },
+    "has_result": {
+      "type": "noul",
+      "instructions": "Does `segment` specify the Result—the expected output format, acceptance criteria, target metric, or definition of done?",
+      "criteria": {
+        "true": "The user defines what the final outcome should look like, such as an expected return format, test condition, performance target, or verification criterion.",
+        "false": "The user does not describe the expected output format, success metric, or how the final outcome will be verified."
+      }
+    },
+    "is_structured": {
+      "type": "noul",
+      "instructions": "Does `segment` name concrete technical entities, specific components, or a focused topic rather than being vague or unstructured?",
+      "criteria": {
+        "true": "The message references specific components, files, APIs, errors, or a focused subject where only one or two concrete parameters are missing.",
+        "false": "The message is overly vague, open-ended, rambling, or underspecified (e.g., 'it is broken, help me' or 'make my app better') with no concrete anchor."
+      }
+    }
+  },
+  "required_nouls": {
+    "situation": "has_situation",
+    "task": "has_task"
+  },
+  "rules": [
+    {
+      "when": {
+        "has_situation": true,
+        "has_task": true,
+        "has_action": true,
+        "has_result": true
+      },
+      "output": "COMPLETE_STAR"
+    },
+    {
+      "when": {
+        "has_situation": true,
+        "has_task": true,
+        "has_action": true,
+        "has_result": false
+      },
+      "output": "MISSING_RESULT"
+    },
+    {
+      "when": {
+        "has_situation": true,
+        "has_task": true,
+        "has_action": false,
+        "has_result": true
+      },
+      "output": "MISSING_ACTION"
+    },
+    {
+      "when": {
+        "has_situation": true,
+        "has_task": true,
+        "has_action": false,
+        "has_result": false
+      },
+      "output": "MINIMUM_SUFFICIENT"
+    },
+    {
+      "when": {
+        "is_structured": true
+      },
+      "output": "CLARIFY_PARAMETERS"
+    }
+  ],
+  "default_output": "SCAFFOLD_USER"
+}

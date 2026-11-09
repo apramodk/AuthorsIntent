@@ -1,0 +1,143 @@
+[
+  {
+    "id": "star_full_complete",
+    "description": "User provides Situation, Task, Action, and Result clearly -> COMPLETE_STAR -> direct_execute.",
+    "state": {
+      "segment": "Our FastAPI auth service in `src/auth/jwt.py` is rejecting valid refresh tokens after a Redis failover (Situation). Update the token verifier to gracefully fallback to the primary public key cache (Task) using `tenacity` exponential backoff with max 3 retries (Action), and ensure all unit tests in `tests/test_jwt.py` pass with <15ms p99 latency (Result)."
+    },
+    "mock_answers": {
+      "has_situation": { "type": "noul", "noul": 0.98 },
+      "has_task": { "type": "noul", "noul": 0.98 },
+      "has_action": { "type": "noul", "noul": 0.96 },
+      "has_result": { "type": "noul", "noul": 0.95 },
+      "is_structured": { "type": "noul", "noul": 0.99 }
+    },
+    "expected": {
+      "is_sufficient": true,
+      "status": "COMPLETE_STAR",
+      "missing_required": [],
+      "route": "direct_execute"
+    }
+  },
+  {
+    "id": "star_minimum_sufficient",
+    "description": "User provides Situation and Task (minimum required), omitting specific Action and Result -> MINIMUM_SUFFICIENT -> plan_then_execute.",
+    "state": {
+      "segment": "Our payment webhook worker is throwing a KeyError on `customer.subscription_id` whenever a guest checkout completes in staging. Can you trace where the payload is parsed and prevent guest sessions from crashing the worker?"
+    },
+    "mock_answers": {
+      "has_situation": { "type": "noul", "noul": 0.96 },
+      "has_task": { "type": "noul", "noul": 0.95 },
+      "has_action": { "type": "noul", "noul": 0.18 },
+      "has_result": { "type": "noul", "noul": 0.22 },
+      "is_structured": { "type": "noul", "noul": 0.94 }
+    },
+    "expected": {
+      "is_sufficient": true,
+      "status": "MINIMUM_SUFFICIENT",
+      "missing_required": [],
+      "route": "plan_then_execute"
+    }
+  },
+  {
+    "id": "star_missing_result",
+    "description": "Situation, Task, and Action are present, but Result criteria are omitted -> MISSING_RESULT -> confirm_criteria_or_execute.",
+    "state": {
+      "segment": "Please add a guard clause for empty headers before the JSON parser runs.",
+      "conversation_context": "We are debugging `src/webhook/handler.py` where empty webhook ping requests from Stripe trigger a JSONDecodeError in production."
+    },
+    "mock_answers": {
+      "has_situation": { "type": "noul", "noul": 0.92 },
+      "has_task": { "type": "noul", "noul": 0.96 },
+      "has_action": { "type": "noul", "noul": 0.78 },
+      "has_result": { "type": "noul", "noul": 0.15 },
+      "is_structured": { "type": "noul", "noul": 0.91 }
+    },
+    "expected": {
+      "is_sufficient": true,
+      "status": "MISSING_RESULT",
+      "missing_required": [],
+      "route": "confirm_criteria_or_execute"
+    }
+  },
+  {
+    "id": "star_missing_action",
+    "description": "Situation, Task, and Result criteria are present, but implementation Action/method is omitted -> MISSING_ACTION -> propose_action_plan.",
+    "state": {
+      "segment": "Our `/v1/search` endpoint in `src/api/search.py` currently takes 1.4s on average when querying the product catalog. Optimize the endpoint so p95 response time drops under 150ms without changing the existing JSON response schema."
+    },
+    "mock_answers": {
+      "has_situation": { "type": "noul", "noul": 0.96 },
+      "has_task": { "type": "noul", "noul": 0.97 },
+      "has_action": { "type": "noul", "noul": 0.12 },
+      "has_result": { "type": "noul", "noul": 0.95 },
+      "is_structured": { "type": "noul", "noul": 0.96 }
+    },
+    "expected": {
+      "is_sufficient": true,
+      "status": "MISSING_ACTION",
+      "missing_required": [],
+      "route": "propose_action_plan"
+    }
+  },
+  {
+    "id": "star_missing_situation_clarify",
+    "description": "Structured request with a clear Task and Action, but missing Situation -> CLARIFY_PARAMETERS -> clarify_missing_parameters.",
+    "state": {
+      "segment": "Add a Redis token-bucket rate limiter set to 100 requests per minute per API key."
+    },
+    "mock_answers": {
+      "has_situation": { "type": "noul", "noul": 0.14 },
+      "has_task": { "type": "noul", "noul": 0.95 },
+      "has_action": { "type": "noul", "noul": 0.85 },
+      "has_result": { "type": "noul", "noul": 0.40 },
+      "is_structured": { "type": "noul", "noul": 0.88 }
+    },
+    "expected": {
+      "is_sufficient": false,
+      "status": "CLARIFY_PARAMETERS",
+      "missing_required": ["situation"],
+      "route": "clarify_missing_parameters"
+    }
+  },
+  {
+    "id": "star_missing_task_clarify",
+    "description": "Structured Situation describing concrete system metrics, but no Task/objective stated -> CLARIFY_PARAMETERS -> clarify_missing_parameters.",
+    "state": {
+      "segment": "In our `orders-service` Kubernetes deployment, pod memory usage climbs from 250MB to 1.8GB over 4 hours whenever the `sync_inventory` cron job runs."
+    },
+    "mock_answers": {
+      "has_situation": { "type": "noul", "noul": 0.96 },
+      "has_task": { "type": "noul", "noul": 0.08 },
+      "has_action": { "type": "noul", "noul": 0.04 },
+      "has_result": { "type": "noul", "noul": 0.05 },
+      "is_structured": { "type": "noul", "noul": 0.92 }
+    },
+    "expected": {
+      "is_sufficient": false,
+      "status": "CLARIFY_PARAMETERS",
+      "missing_required": ["task"],
+      "route": "clarify_missing_parameters"
+    }
+  },
+  {
+    "id": "star_vague_unstructured_scaffold",
+    "description": "Vague, unstructured plea for help lacking both concrete Situation and Task -> SCAFFOLD_USER -> switch_to_scaffolding_persona.",
+    "state": {
+      "segment": "Everything is completely broken and super slow today, can you just make my app work better?"
+    },
+    "mock_answers": {
+      "has_situation": { "type": "noul", "noul": 0.08 },
+      "has_task": { "type": "noul", "noul": 0.12 },
+      "has_action": { "type": "noul", "noul": 0.02 },
+      "has_result": { "type": "noul", "noul": 0.05 },
+      "is_structured": { "type": "noul", "noul": 0.06 }
+    },
+    "expected": {
+      "is_sufficient": false,
+      "status": "SCAFFOLD_USER",
+      "missing_required": ["situation", "task"],
+      "route": "switch_to_scaffolding_persona"
+    }
+  }
+]

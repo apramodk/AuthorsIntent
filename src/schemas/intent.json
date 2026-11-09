@@ -1,9 +1,14 @@
 {
+  "name": "intent",
   "schema_version": "0.0.1",
-  "description": "TypeSafe Jev question definitions for evaluating Macro and Operational Micro Intents on a dialogue segment.",
+  "description": "TypeSafe Jev question definitions and truth-table rules for evaluating Macro and Operational Micro Intents on a dialogue segment.",
   "state_contract": {
     "segment": "The specific user utterance or segmented clause being evaluated.",
     "conversation_context": "Optional prior turn summary or immediate dialogue history relevant to the segment."
+  },
+  "thresholds": {
+    "yes": 0.7,
+    "no": 0.3
   },
   "questions": {
     "is_inform": {
@@ -42,16 +47,22 @@
       }
     }
   },
-  "macro_derivation": {
-    "thresholds": {
-      "yes": 0.7,
-      "no": 0.3
+  "gating": {
+    "micro_intent": "has_micro_intent"
+  },
+  "rules": [
+    {
+      "when": { "is_inform": true, "is_persuade": true },
+      "output": "BOTH"
     },
-    "truth_table": {
-      "BOTH": "is_inform >= 0.7 and is_persuade >= 0.7",
-      "INFORM": "is_inform >= 0.7 and is_persuade < 0.7",
-      "PERSUADE": "is_persuade >= 0.7 and is_inform < 0.7",
-      "AMBIGUOUS": "otherwise"
+    {
+      "when": { "is_inform": true, "is_persuade": false },
+      "output": "INFORM"
+    },
+    {
+      "when": { "is_inform": false, "is_persuade": true },
+      "output": "PERSUADE"
     }
-  }
+  ],
+  "default_output": "AMBIGUOUS"
 }
