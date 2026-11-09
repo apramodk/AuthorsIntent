@@ -1,0 +1,55 @@
+{
+  "name": "segment",
+  "schema_version": "0.0.1",
+  "description": "TypeSafe Jev question definitions and truth-table rules for detecting topic boundaries across OpenAI-style conversation turns.",
+  "state_contract": {
+    "current_segment": "List of contiguous OpenAI-style message dicts ([{\"role\": \"user\"|\"assistant\", \"content\": \"...\"}]) representing the active topic thread so far.",
+    "candidate_message": "The next message dict ({\"role\": \"user\"|\"assistant\", \"content\": \"...\"}) being evaluated at the boundary."
+  },
+  "thresholds": {
+    "yes": 0.7,
+    "no": 0.3
+  },
+  "questions": {
+    "continues_topic": {
+      "type": "noul",
+      "instructions": "Does `candidate_message` continue, answer, clarify, or follow up on the subject discussed in `current_segment`?",
+      "criteria": {
+        "true": "`candidate_message` replies to, troubleshoots, refines, confirms, or closes out the same technical issue, question, or task active in `current_segment`.",
+        "false": "`candidate_message` drops the subject in `current_segment` without addressing or referencing it, or is pure standalone conversational filler."
+      }
+    },
+    "introduces_new_topic": {
+      "type": "noul",
+      "instructions": "Does `candidate_message` introduce a new, unrelated subject or separate task that was not part of `current_segment`?",
+      "criteria": {
+        "true": "`candidate_message` shifts the conversation to a different system, component, feature request, or unrelated problem from the one in `current_segment`.",
+        "false": "`candidate_message` stays within the scope of the existing subject in `current_segment`, or is a brief acknowledgment with no new subject."
+      }
+    }
+  },
+  "rules": [
+    {
+      "when": {
+        "continues_topic": true,
+        "introduces_new_topic": false
+      },
+      "output": "CONTINUE_SEGMENT"
+    },
+    {
+      "when": {
+        "continues_topic": false,
+        "introduces_new_topic": true
+      },
+      "output": "NEW_SEGMENT"
+    },
+    {
+      "when": {
+        "continues_topic": true,
+        "introduces_new_topic": true
+      },
+      "output": "COMPOUND_SHIFT"
+    }
+  ],
+  "default_output": "AMBIGUOUS_BOUNDARY"
+}

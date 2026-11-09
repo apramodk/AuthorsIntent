@@ -23,10 +23,8 @@
       }
     },
     "expected": {
-      "macro_intent": "INFORM",
-      "micro_intent": "provide_update",
-      "route": "ingest_provide_update",
-      "requires_star_verification": false
+      "output": "INFORM",
+      "choices": { "micro_intent": "provide_update" }
     }
   },
   {
@@ -54,10 +52,8 @@
       }
     },
     "expected": {
-      "macro_intent": "INFORM",
-      "micro_intent": "clarify_point",
-      "route": "ingest_clarify_point",
-      "requires_star_verification": false
+      "output": "INFORM",
+      "choices": { "micro_intent": "clarify_point" }
     }
   },
   {
@@ -84,10 +80,8 @@
       }
     },
     "expected": {
-      "macro_intent": "PERSUADE",
-      "micro_intent": "request_info",
-      "route": "execute_request_info",
-      "requires_star_verification": true
+      "output": "PERSUADE",
+      "choices": { "micro_intent": "request_info" }
     }
   },
   {
@@ -114,10 +108,8 @@
       }
     },
     "expected": {
-      "macro_intent": "BOTH",
-      "micro_intent": "request_info",
-      "route": "execute_request_info",
-      "requires_star_verification": true
+      "output": "BOTH",
+      "choices": { "micro_intent": "request_info" }
     }
   },
   {
@@ -144,10 +136,8 @@
       }
     },
     "expected": {
-      "macro_intent": "PERSUADE",
-      "micro_intent": "confirm_understanding",
-      "route": "handle_confirm_understanding",
-      "requires_star_verification": false
+      "output": "PERSUADE",
+      "choices": { "micro_intent": "confirm_understanding" }
     }
   },
   {
@@ -174,10 +164,8 @@
       }
     },
     "expected": {
-      "macro_intent": "BOTH",
-      "micro_intent": "validate_info",
-      "route": "handle_validate_info",
-      "requires_star_verification": false
+      "output": "BOTH",
+      "choices": { "micro_intent": "validate_info" }
     }
   },
   {
@@ -204,10 +192,8 @@
       }
     },
     "expected": {
-      "macro_intent": "AMBIGUOUS",
-      "micro_intent": null,
-      "route": "clarify_or_acknowledge",
-      "requires_star_verification": false
+      "output": "AMBIGUOUS",
+      "choices": { "micro_intent": null }
     }
   }
 ]

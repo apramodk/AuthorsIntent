@@ -1,0 +1,133 @@
+[
+  {
+    "id": "segment_assistant_reply_continues",
+    "description": "Assistant replies directly to the user's bug report on the same topic -> CONTINUE_SEGMENT.",
+    "state": {
+      "current_segment": [
+        {
+          "role": "user",
+          "content": "Our Stripe webhook in `src/webhook/handler.py` is returning 502s in staging."
+        }
+      ],
+      "candidate_message": {
+        "role": "assistant",
+        "content": "Check whether the signature verification middleware is timing out when reading the raw request body."
+      }
+    },
+    "mock_answers": {
+      "continues_topic": { "type": "noul", "noul": 0.98 },
+      "introduces_new_topic": { "type": "noul", "noul": 0.03 }
+    },
+    "expected": {
+      "output": "CONTINUE_SEGMENT"
+    }
+  },
+  {
+    "id": "segment_user_followup_continues",
+    "description": "User follows up with debugging details on the active webhook issue -> CONTINUE_SEGMENT.",
+    "state": {
+      "current_segment": [
+        {
+          "role": "user",
+          "content": "Our Stripe webhook in `src/webhook/handler.py` is returning 502s in staging."
+        },
+        {
+          "role": "assistant",
+          "content": "Check whether the signature verification middleware is timing out when reading the raw request body."
+        }
+      ],
+      "candidate_message": {
+        "role": "user",
+        "content": "I checked the staging logs and it's throwing a KeyError on `customer.subscription_id` during guest checkouts."
+      }
+    },
+    "mock_answers": {
+      "continues_topic": { "type": "noul", "noul": 0.96 },
+      "introduces_new_topic": { "type": "noul", "noul": 0.08 }
+    },
+    "expected": {
+      "output": "CONTINUE_SEGMENT"
+    }
+  },
+  {
+    "id": "segment_user_new_topic_shift",
+    "description": "User switches from the Stripe webhook topic to an unrelated Go Dockerfile request -> NEW_SEGMENT.",
+    "state": {
+      "current_segment": [
+        {
+          "role": "user",
+          "content": "Our Stripe webhook in `src/webhook/handler.py` is returning 502s in staging."
+        },
+        {
+          "role": "assistant",
+          "content": "Check whether the signature verification middleware is timing out when reading the raw request body."
+        }
+      ],
+      "candidate_message": {
+        "role": "user",
+        "content": "Can you write a Dockerfile for our Go analytics worker using a multi-stage Alpine build?"
+      }
+    },
+    "mock_answers": {
+      "continues_topic": { "type": "noul", "noul": 0.02 },
+      "introduces_new_topic": { "type": "noul", "noul": 0.98 }
+    },
+    "expected": {
+      "output": "NEW_SEGMENT"
+    }
+  },
+  {
+    "id": "segment_compound_resolve_and_pivot",
+    "description": "User confirms the webhook fix (continues_topic) and pivots to a new SQL migration task (introduces_new_topic) in the same turn -> COMPOUND_SHIFT.",
+    "state": {
+      "current_segment": [
+        {
+          "role": "user",
+          "content": "Our Stripe webhook in `src/webhook/handler.py` is returning 502s in staging."
+        },
+        {
+          "role": "assistant",
+          "content": "Check whether the signature verification middleware is timing out when reading the raw request body."
+        }
+      ],
+      "candidate_message": {
+        "role": "user",
+        "content": "That fixed the 502s—the `STRIPE_WEBHOOK_SECRET` env var was missing in staging. Also, can you generate a SQL migration to add `last_login_at` to the `users` table?"
+      }
+    },
+    "mock_answers": {
+      "continues_topic": { "type": "noul", "noul": 0.92 },
+      "introduces_new_topic": { "type": "noul", "noul": 0.95 }
+    },
+    "expected": {
+      "output": "COMPOUND_SHIFT"
+    }
+  },
+  {
+    "id": "segment_ambiguous_filler",
+    "description": "Standalone conversational filler that neither continues the technical topic nor introduces a new topic -> AMBIGUOUS_BOUNDARY.",
+    "state": {
+      "current_segment": [
+        {
+          "role": "user",
+          "content": "Our Stripe webhook in `src/webhook/handler.py` is returning 502s in staging."
+        },
+        {
+          "role": "assistant",
+          "content": "Check whether the signature verification middleware is timing out when reading the raw request body."
+        }
+      ],
+      "candidate_message": {
+        "role": "user",
+        "content": "Hey, hold on one second, brb."
+      }
+    },
+    "mock_answers": {
+      "continues_topic": { "type": "noul", "noul": 0.06 },
+      "introduces_new_topic": { "type": "noul", "noul": 0.04 }
+    },
+    "expected": {
+      "output": "AMBIGUOUS_BOUNDARY"
+    }
+  }
+]

@@ -1,6 +1,7 @@
-"""Shared logging, formatting, and CLI runner for `tests/decider/core.py` and `tests/decider/e2e.py`."""
+"""Unified test runner, generic report formatter, and suite builder for AuthorsIntent deciders."""
 
 import argparse
+from collections.abc import Callable
 import json
 import logging
 from pathlib import Path
@@ -12,13 +13,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.engines.base import DecisionEngine
+from src.harness import ConversationRouter
 from src.harness.deciderFactory import DecisionResult
-from src.harness.router import RouteDecision
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
-INTENT_SAMPLES_PATH = DATA_DIR / "intent_samples.json"
-STAR_SAMPLES_PATH = DATA_DIR / "star_samples.json"
-
 logger = logging.getLogger("authors_intent.tests")
 
 # ANSI color codes
@@ -57,36 +56,56 @@ def _color_match(got: Any, expected: Any) -> str:
     return f"{RED}{BOLD}{got} (expected={expected}) <-- MISMATCH{RESET}"
 
 
-def format_intent_report(
+def _summarize_state(state: dict[str, Any]) -> str:
+    if "segment" in state:
+        return str(state["segment"])
+    if "candidate_message" in state:
+        cand = state["candidate_message"]
+        return f"[{cand.get('role', 'user')}] {cand.get('content', '')}"
+    return json.dumps(state, ensure_ascii=False)
+
+
+def format_decision_report(
     file_label: str,
+    decider_name: str,
     sample_id: str,
-    segment: str,
+    state: dict[str, Any],
     result: DecisionResult,
-    decision: RouteDecision,
     expected: dict[str, Any],
     show_tokens: bool = False,
 ) -> tuple[bool, str]:
-    micro = result.choices.get("micro_intent")
-    passed = (
-        result.output == expected["macro_intent"]
-        and micro == expected["micro_intent"]
-        and decision.route == expected["route"]
-        and decision.requires_star_verification == expected["requires_star_verification"]
-    )
+    """Generic report formatter for any Decider schema and DecisionResult."""
+    passed = result.output == expected["output"]
+    for choice_key, exp_choice in expected.get("choices", {}).items():
+        passed = passed and (result.choices.get(choice_key) == exp_choice)
+    if "is_sufficient" in expected:
+        passed = passed and (result.is_sufficient == expected["is_sufficient"])
+    if "missing_required" in expected:
+        passed = passed and (result.missing_required == expected["missing_required"])
+
     badge = f"{GREEN}{BOLD}[PASS]{RESET}" if passed else f"{RED}{BOLD}[FAIL]{RESET}"
-    probs = result.probabilities
+    nouls_str = ", ".join(f"{k}={_color_prob(v)}" for k, v in result.probabilities.items())
+
     lines = [
-        f"\n{badge} {MAGENTA}[{file_label}]{RESET} {CYAN}{BOLD}[intent] {sample_id}{RESET}",
-        f"  {DIM}segment:{RESET}  {segment}",
-        f"  {DIM}nouls:{RESET}    is_inform={_color_prob(probs['is_inform'])}, "
-        f"is_persuade={_color_prob(probs['is_persuade'])}, "
-        f"has_micro={_color_prob(probs['has_micro_intent'])}",
-        f"  {DIM}macro:{RESET}    {_color_match(result.output, expected['macro_intent'])}",
-        f"  {DIM}micro:{RESET}    {_color_match(micro, expected['micro_intent'])}",
-        f"  {DIM}strategy:{RESET} {MAGENTA}{decision.strategy_name}{RESET} -> "
-        f"{_color_match(decision.route, expected['route'])} "
-        f"{DIM}[STAR={_color_match(decision.requires_star_verification, expected['requires_star_verification'])}]{RESET}",
+        f"\n{badge} {MAGENTA}[{file_label}]{RESET} {CYAN}{BOLD}[{decider_name}] {sample_id}{RESET}",
+        f"  {DIM}input:{RESET}    {_summarize_state(state)}",
+        f"  {DIM}nouls:{RESET}    {nouls_str}",
+        f"  {DIM}output:{RESET}   {_color_match(result.output, expected['output'])}",
     ]
+
+    for choice_key, exp_choice in expected.get("choices", {}).items():
+        got_choice = result.choices.get(choice_key)
+        lines.append(f"  {DIM}{choice_key}:{RESET} {_color_match(got_choice, exp_choice)}")
+
+    if "is_sufficient" in expected:
+        lines.append(
+            f"  {DIM}sufficient:{RESET} {_color_match(result.is_sufficient, expected['is_sufficient'])}"
+        )
+    if "missing_required" in expected:
+        lines.append(
+            f"  {DIM}missing:{RESET}  {_color_match(result.missing_required, expected['missing_required'])}"
+        )
+
     if show_tokens:
         in_tok = result.input_tokens or 0
         out_tok = result.output_tokens or 0
@@ -95,53 +114,122 @@ def format_intent_report(
             f"output={CYAN}{out_tok}{RESET}, "
             f"total={BOLD}{CYAN}{in_tok + out_tok}{RESET}"
         )
+
     return passed, "\n".join(lines)
 
 
-def format_star_report(
+def discover_sample_sets(
+    test_set: str = "all",
+    scenario: str | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """Auto-discover `tests/data/<decider>_samples.json` files and filter by set/scenario."""
+    discovered: dict[str, list[dict[str, Any]]] = {}
+    for path in sorted(DATA_DIR.glob("*_samples.json")):
+        decider_name = path.stem.removesuffix("_samples")
+        if test_set not in ("all", decider_name):
+            continue
+        samples: list[dict[str, Any]] = json.loads(path.read_text(encoding="utf-8"))
+        if scenario:
+            needle = scenario.lower()
+            samples = [s for s in samples if needle in s["id"].lower()]
+        if samples:
+            discovered[decider_name] = samples
+    return discovered
+
+
+def build_decider_suite(
     file_label: str,
-    sample_id: str,
-    segment: str,
-    result: DecisionResult,
-    decision: RouteDecision,
-    expected: dict[str, Any],
-    show_tokens: bool = False,
-) -> tuple[bool, str]:
-    passed = (
-        result.is_sufficient == expected["is_sufficient"]
-        and result.output == expected["status"]
-        and result.missing_required == expected["missing_required"]
-        and decision.route == expected["route"]
-    )
-    badge = f"{GREEN}{BOLD}[PASS]{RESET}" if passed else f"{RED}{BOLD}[FAIL]{RESET}"
-    probs = result.probabilities
-    lines = [
-        f"\n{badge} {MAGENTA}[{file_label}]{RESET} {CYAN}{BOLD}[star] {sample_id}{RESET}",
-        f"  {DIM}segment:{RESET}  {segment}",
-        f"  {DIM}star:{RESET}     S={_color_prob(probs['has_situation'])}, "
-        f"T={_color_prob(probs['has_task'])}, "
-        f"A={_color_prob(probs['has_action'])}, "
-        f"R={_color_prob(probs['has_result'])} | "
-        f"structured={_color_prob(probs['is_structured'])}",
-        f"  {DIM}status:{RESET}   {_color_match(result.output, expected['status'])} "
-        f"{DIM}[is_sufficient={_color_match(result.is_sufficient, expected['is_sufficient'])}]{RESET}",
-        f"  {DIM}missing:{RESET}  {_color_match(result.missing_required, expected['missing_required'])}",
-        f"  {DIM}strategy:{RESET} {MAGENTA}{decision.strategy_name}{RESET} -> "
-        f"{_color_match(decision.route, expected['route'])}",
-    ]
-    if show_tokens:
-        in_tok = result.input_tokens or 0
-        out_tok = result.output_tokens or 0
-        lines.append(
-            f"  {DIM}tokens:{RESET}   input={CYAN}{in_tok}{RESET}, "
-            f"output={CYAN}{out_tok}{RESET}, "
-            f"total={BOLD}{CYAN}{in_tok + out_tok}{RESET}"
-        )
-    return passed, "\n".join(lines)
+    engine_factory: Callable[[], DecisionEngine],
+    samples_by_set: dict[str, list[dict[str, Any]]],
+    scoreboard: list[dict[str, Any]],
+    token_totals: dict[str, int] | None = None,
+) -> unittest.TestSuite:
+    """Build a unittest.TestSuite for any DecisionEngine across all discovered sample sets."""
+    show_tokens = token_totals is not None
+
+    class DeciderTestCase(unittest.TestCase):
+        router: ConversationRouter
+
+        @classmethod
+        def setUpClass(cls) -> None:
+            cls.router = ConversationRouter(engine=engine_factory())
+            logger.debug(
+                f"\n{BOLD}{CYAN}=== AuthorsIntent [{file_label}] Decider Tests ==={RESET}"
+            )
+
+        @classmethod
+        def tearDownClass(cls) -> None:
+            cls.router.close()
+
+    def _make_method(
+        decider_name: str, sample: dict[str, Any]
+    ) -> Callable[[DeciderTestCase], None]:
+        sample_id = sample["id"]
+        state = sample["state"]
+        expected = sample["expected"]
+
+        def _test(self: DeciderTestCase) -> None:
+            result = self.router.decide(decider_name, state)
+            if token_totals is not None:
+                token_totals["input"] += result.input_tokens or 0
+                token_totals["output"] += result.output_tokens or 0
+                token_totals["scenarios"] += 1
+
+            passed, report = format_decision_report(
+                file_label,
+                decider_name,
+                sample_id,
+                state,
+                result,
+                expected,
+                show_tokens=show_tokens,
+            )
+            if passed:
+                logger.debug(report)
+            else:
+                logger.error(report)
+
+            scoreboard.append(
+                {"file": file_label, "set": decider_name, "id": sample_id, "passed": passed}
+            )
+            self.assertEqual(
+                result.output, expected["output"], f"[{sample_id}] output mismatch"
+            )
+            for choice_key, exp_choice in expected.get("choices", {}).items():
+                self.assertEqual(
+                    result.choices.get(choice_key),
+                    exp_choice,
+                    f"[{sample_id}] choice {choice_key!r} mismatch",
+                )
+            if "is_sufficient" in expected:
+                self.assertEqual(
+                    result.is_sufficient,
+                    expected["is_sufficient"],
+                    f"[{sample_id}] is_sufficient mismatch",
+                )
+            if "missing_required" in expected:
+                self.assertEqual(
+                    result.missing_required,
+                    expected["missing_required"],
+                    f"[{sample_id}] missing_required mismatch",
+                )
+
+        _test.__doc__ = f"[{file_label}][{decider_name}] {sample_id}"
+        return _test
+
+    suite = unittest.TestSuite()
+    for set_idx, (decider_name, samples) in enumerate(samples_by_set.items(), start=1):
+        for idx, sample in enumerate(samples, start=1):
+            method_name = (
+                f"test_{file_label.lower()}_{set_idx:02d}_{decider_name}_{idx:02d}_{sample['id']}"
+            )
+            setattr(DeciderTestCase, method_name, _make_method(decider_name, sample))
+            suite.addTest(DeciderTestCase(method_name))
+
+    return suite
 
 
 def _normalize_file_arg(raw: str) -> str:
-    """Normalize `--file` value (e.g., `core.py` -> `core`, `tests/decider/e2e.py` -> `e2e`)."""
     stem = Path(raw.strip()).stem.lower()
     if stem not in ("all", "core", "e2e"):
         raise argparse.ArgumentTypeError(
@@ -150,36 +238,10 @@ def _normalize_file_arg(raw: str) -> str:
     return stem
 
 
-def load_filtered_samples(
-    test_set: str = "all",
-    scenario: str | None = None,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Load intent and star samples filtered by `--set` and `--scenario`."""
-    intent_samples: list[dict[str, Any]] = []
-    star_samples: list[dict[str, Any]] = []
-
-    if test_set in ("all", "intent"):
-        intent_samples = json.loads(INTENT_SAMPLES_PATH.read_text(encoding="utf-8"))
-    if test_set in ("all", "star"):
-        star_samples = json.loads(STAR_SAMPLES_PATH.read_text(encoding="utf-8"))
-
-    if scenario:
-        needle = scenario.lower()
-        intent_samples = [
-            s for s in intent_samples if needle in s["id"].lower()
-        ]
-        star_samples = [
-            s for s in star_samples if needle in s["id"].lower()
-        ]
-
-    return intent_samples, star_samples
-
-
 def log_scoreboard(
     scoreboard: list[dict[str, Any]],
     token_totals: dict[str, int],
 ) -> None:
-    """Log a compact color-coded summary table of all executed scenarios."""
     if not scoreboard:
         return
     passed_count = sum(1 for item in scoreboard if item["passed"])
@@ -190,7 +252,7 @@ def log_scoreboard(
         badge = f"{GREEN}{BOLD}[PASS]{RESET}" if item["passed"] else f"{RED}{BOLD}[FAIL]{RESET}"
         lines.append(
             f"  {badge} {MAGENTA}[{item['file']:<4}]{RESET} "
-            f"{CYAN}[{item['set']:<6}]{RESET} {BOLD}{item['id']}{RESET}"
+            f"{CYAN}[{item['set']:<7}]{RESET} {BOLD}{item['id']}{RESET}"
         )
 
     summary_color = GREEN if failed_count == 0 else RED
@@ -216,6 +278,10 @@ def run_cli(default_file: str = "all", argv: list[str] | None = None) -> int:
     from tests.decider.core import build_core_suite
     from tests.decider.e2e import build_e2e_suite
 
+    available_sets = ["all"] + [
+        p.stem.removesuffix("_samples") for p in sorted(DATA_DIR.glob("*_samples.json"))
+    ]
+
     parser = argparse.ArgumentParser(
         description="Run AuthorsIntent decider and router test suites."
     )
@@ -229,9 +295,9 @@ def run_cli(default_file: str = "all", argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--set",
         dest="test_set",
-        choices=["all", "intent", "star"],
+        choices=available_sets,
         default="all",
-        help="Filter by decider test set: 'intent', 'star', or 'all' (default: all).",
+        help=f"Filter by decider test set: {', '.join(available_sets)} (default: all).",
     )
     parser.add_argument(
         "--scenario",
@@ -249,11 +315,8 @@ def run_cli(default_file: str = "all", argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     configure_logging(verbose=args.verbose)
 
-    intent_samples, star_samples = load_filtered_samples(
-        test_set=args.test_set,
-        scenario=args.scenario,
-    )
-    if not intent_samples and not star_samples:
+    samples_by_set = discover_sample_sets(test_set=args.test_set, scenario=args.scenario)
+    if not samples_by_set:
         logger.warning(
             f"{YELLOW}No test scenarios matched --set={args.test_set!r} --scenario={args.scenario!r}.{RESET}"
         )
@@ -267,17 +330,12 @@ def run_cli(default_file: str = "all", argv: list[str] | None = None) -> int:
     for test_file in files:
         if test_file == "core":
             master_suite.addTest(
-                build_core_suite(
-                    intent_samples=intent_samples,
-                    star_samples=star_samples,
-                    scoreboard=scoreboard,
-                )
+                build_core_suite(samples_by_set=samples_by_set, scoreboard=scoreboard)
             )
         elif test_file == "e2e":
             master_suite.addTest(
                 build_e2e_suite(
-                    intent_samples=intent_samples,
-                    star_samples=star_samples,
+                    samples_by_set=samples_by_set,
                     scoreboard=scoreboard,
                     token_totals=token_totals,
                 )

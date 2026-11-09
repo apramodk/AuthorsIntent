@@ -35,19 +35,20 @@ Dialogue segments are evaluated for completeness against **STAR** (**S**ituation
 ├── src/
 │   ├── schemas/
 │   │   ├── intent.json         # Typed Jev questions & truth-table rules for macro/micro intent
-│   │   └── star.json           # Typed Jev questions & truth-table rules for STAR verification
+│   │   ├── star.json           # Typed Jev questions & truth-table rules for STAR verification
+│   │   └── segment.json        # Typed Jev questions & truth-table rules for topic segmentation
 │   ├── engines/
 │   │   ├── base.py             # Abstract DecisionEngine interface
 │   │   └── jev_engine.py       # TypeSafe Jev DecisionEngine implementation (typesafe-sdk)
 │   └── harness/
-│       ├── segmenter.py        # Dialogue turn & clause segmentation
 │       ├── deciderFactory.py   # Generic JSON-driven Decider & DeciderFactory
 │       ├── deciderManager.py   # DeciderManager registry creating decider instances per schema
-│       └── router.py           # Strategy-pattern ConversationRouter over decider outputs
+│       └── router.py           # ConversationRouter over DeciderManager outputs
 └── tests/
     ├── data/
-    │   ├── intent_samples.json # Intent test utterances, mock Jev probabilities, and expected routes
-    │   └── star_samples.json   # STAR test utterances, mock Jev probabilities, and expected routes
+    │   ├── intent_samples.json  # Intent test utterances, mock Jev probabilities, and expected routes
+    │   ├── star_samples.json    # STAR test utterances, mock Jev probabilities, and expected routes
+    │   └── segment_samples.json # Topic boundary test threads, mock Jev probabilities, and outputs
     └── decider/
         ├── core.py             # Unified offline core unit tests for DeciderManager, Decider & Router
         └── e2e.py              # Unified live E2E tests against TypeSafe Jev

@@ -19,7 +19,7 @@ Build a modular conversation routing harness using a decision engine (starting w
   - Vague / unstructured: Switch to scaffolding persona to guide the user.
 
 ## Repository Structure
-- `src/schemas/`: `intent.json`, `star.json`
+- `src/schemas/`: `intent.json`, `star.json`, `segment.json`
 - `src/engines/`: `base.py` (abstract `DecisionEngine`), `jev_engine.py`
-- `src/harness/`: `segmenter.py`, `deciderFactory.py`, `deciderManager.py`, `router.py`
+- `src/harness/`: `deciderFactory.py`, `deciderManager.py`, `router.py`
 - `tests/decider/`: `core.py`, `e2e.py`
